@@ -3,10 +3,311 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Mistake Tracker</title>
+    <style>
+        body {
+            font-family: Times New Roman, serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #330204;
+            color: white;
+        }
+        h1 { text-align: center; }
+        input {
+            padding: 10px;
+            margin: 5px;
+            width: 60%;
+            border-radius: 5px;
+            border: none;
+        }
+        button {
+            padding: 10px 15px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .search-bar {
+            width: 90%;
+            margin-bottom: 15px;
+        }
+        .person-card {
+            background: #16213e;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .person-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .person-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .person-info:hover { color: #e94560; }
+        .person-buttons {
+            display: flex;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+        .rename-row {
+            display: none;
+            margin-top: 10px;
+            gap: 5px;
+            align-items: center;
+        }
+        .rename-row input {
+            width: 60%;
+            padding: 6px;
+            margin: 0;
+        }
+        .mistake-item {
+            background: #0f3460;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .mistake-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .edit-row {
+            display: none;
+            margin-top: 8px;
+            gap: 5px;
+            align-items: center;
+        }
+        .edit-row input {
+            width: 65%;
+            padding: 6px;
+            margin: 0;
+        }
+        .delete-btn {
+            background: #555;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .delete-btn:hover { background: #e94560; }
+        .save-btn {
+            background: #2ecc71;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .save-btn:hover { background: #27ae60; }
+        .back-btn {
+            background: #555;
+            margin-bottom: 15px;
+        }
+        .add-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>my first ever website lol</h1>
-<button>boom</button>
+
+    <h1>Mistake Tracker</h1>
+
+    <div id="home-view">
+        <div class="add-section">
+            <input type="text" id="personName" placeholder="Enter person's name">
+            <button onclick="addPerson()">Add Person</button>
+        </div>
+        <input class="search-bar" type="text" id="searchInput" placeholder="Search for a person..." oninput="displayPeople()">
+        <div id="people-list"></div>
+    </div>
+
+    <div id="person-view" style="display:none;">
+        <button class="back-btn" onclick="goBack()">← Back</button>
+        <h2 id="person-title"></h2>
+        <div class="add-section">
+            <input type="text" id="mistakeInput" placeholder="What did they do?">
+            <button onclick="addMistake()">Add Mistake</button>
+        </div>
+        <div id="mistakes-list"></div>
+    </div>
+
+    <script>
+        let data = JSON.parse(localStorage.getItem('mistakeData')) || {};
+        let currentPerson = null;
+
+        function save() {
+            localStorage.setItem('mistakeData', JSON.stringify(data));
+        }
+
+        function addPerson() {
+            const name = document.getElementById('personName').value.trim();
+            if (name && !data[name]) {
+                data[name] = [];
+                save();
+                document.getElementById('personName').value = '';
+                displayPeople();
+            }
+        }
+
+        function deletePerson(name) {
+            delete data[name];
+            save();
+            displayPeople();
+        }
+
+        function toggleRename(name) {
+            const row = document.getElementById('rename-' + name);
+            row.style.display = row.style.display === 'flex' ? 'none' : 'flex';
+            if (row.style.display === 'flex') {
+                document.getElementById('rename-input-' + name).value = name;
+                document.getElementById('rename-input-' + name).focus();
+            }
+        }
+
+        function saveRename(oldName) {
+            const newName = document.getElementById('rename-input-' + oldName).value.trim();
+            if (newName && !data[newName]) {
+                data[newName] = data[oldName];
+                delete data[oldName];
+                save();
+                displayPeople();
+            }
+        }
+
+        function displayPeople() {
+            const list = document.getElementById('people-list');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            list.innerHTML = '';
+            Object.keys(data)
+                .filter(name => name.toLowerCase().includes(search))
+                .forEach(name => {
+                    const safeId = name.replace(/[^a-zA-Z0-9]/g, '_');
+                    list.innerHTML += `
+                        <div class="person-card">
+                            <div class="person-row">
+                                <div class="person-info" onclick="openPerson('${name}')">
+                                    <strong>${name}</strong>
+                                    <span>${data[name].length} mistakes</span>
+                                </div>
+                                <div class="person-buttons">
+                                    <button class="delete-btn" onclick="toggleRename('${safeId}')">Rename</button>
+                                    <button class="delete-btn" onclick="deletePerson('${name}')">Delete</button>
+                                </div>
+                            </div>
+                            <div class="rename-row" id="rename-${safeId}" style="display:none;">
+                                <input type="text" id="rename-input-${safeId}" placeholder="New name">
+                                <button class="save-btn" onclick="saveRename('${name}')">Save</button>
+                                <button class="delete-btn" onclick="toggleRename('${safeId}')">Cancel</button>
+                            </div>
+                        </div>`;
+                });
+        }
+
+        function openPerson(name) {
+            currentPerson = name;
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('person-view').style.display = 'block';
+            document.getElementById('person-title').textContent = name + "'s Mistakes";
+            displayMistakes();
+        }
+
+        function goBack() {
+            document.getElementById('home-view').style.display = 'block';
+            document.getElementById('person-view').style.display = 'none';
+            currentPerson = null;
+            displayPeople();
+        }
+
+        function addMistake() {
+            const mistake = document.getElementById('mistakeInput').value.trim();
+            const date = new Date().toLocaleDateString();
+            if (mistake && currentPerson) {
+                data[currentPerson].push({ mistake, date });
+                save();
+                document.getElementById('mistakeInput').value = '';
+                displayMistakes();
+            }
+        }
+
+        function deleteMistake(index) {
+            data[currentPerson].splice(index, 1);
+            save();
+            displayMistakes();
+        }
+
+        function toggleEdit(index) {
+            const row = document.getElementById('edit-' + index);
+            row.style.display = row.style.display === 'flex' ? 'none' : 'flex';
+            if (row.style.display === 'flex') {
+                document.getElementById('edit-input-' + index).value = data[currentPerson][index].mistake;
+                document.getElementById('edit-input-' + index).focus();
+            }
+        }
+
+        function saveEdit(index) {
+            const newText = document.getElementById('edit-input-' + index).value.trim();
+            if (newText) {
+                data[currentPerson][index].mistake = newText;
+                save();
+                displayMistakes();
+            }
+        }
+
+        function changeDate(index) {
+            const row = document.getElementById('date-' + index);
+            row.style.display = row.style.display === 'flex' ? 'none' : 'flex';
+            if (row.style.display === 'flex') {
+                document.getElementById('date-input-' + index).value = data[currentPerson][index].date;
+                document.getElementById('date-input-' + index).focus();
+            }
+        }
+
+        function saveDate(index) {
+            const newDate = document.getElementById('date-input-' + index).value.trim();
+            if (newDate) {
+                data[currentPerson][index].date = newDate;
+                save();
+                displayMistakes();
+            }
+        }
+
+        function displayMistakes() {
+            const list = document.getElementById('mistakes-list');
+            list.innerHTML = '';
+            data[currentPerson].forEach((entry, index) => {
+                list.innerHTML += `
+                    <div class="mistake-item">
+                        <div class="mistake-row">
+                            <span>${entry.mistake} <em style="color:#aaa">(${entry.date})</em></span>
+                            <div style="display:flex;gap:5px;">
+                                <button class="delete-btn" onclick="toggleEdit(${index})">Edit</button>
+                                <button class="delete-btn" onclick="changeDate(${index})">Date</button>
+                                <button class="delete-btn" onclick="deleteMistake(${index})">Delete</button>
+                            </div>
+                        </div>
+                        <div class="edit-row" id="edit-${index}" style="display:none;">
+                            <input type="text" id="edit-input-${index}" placeholder="Edit mistake">
+                            <button class="save-btn" onclick="saveEdit(${index})">Save</button>
+                            <button class="delete-btn" onclick="toggleEdit(${index})">Cancel</button>
+                        </div>
+                        <div class="edit-row" id="date-${index}" style="display:none;">
+                            <input type="text" id="date-input-${index}" placeholder="New date">
+                            <button class="save-btn" onclick="saveDate(${index})">Save</button>
+                            <button class="delete-btn" onclick="changeDate(${index})">Cancel</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        displayPeople();
+    </script>
+
 </body>
 </html>
